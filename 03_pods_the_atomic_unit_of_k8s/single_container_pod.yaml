@@ -1,0 +1,9 @@
+# single-container-pod-demo.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: single-container-pod-demo
+spec:
+  containers:
+    - name: nginx
+      image: nginx:alpine
