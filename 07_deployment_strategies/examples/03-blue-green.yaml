@@ -1,0 +1,69 @@
+## Strategy: Blue/Green
+## Analogy: "Two identical stages — audience watches Blue, Green rehearses. Swap the spotlight."
+## What happens: Two full deployments exist. Service points to one. Switch selector to cutover instantly.
+---
+# BLUE deployment (current/live)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app-blue
+  labels:
+    app: demo-app
+    slot: blue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: demo-app
+      slot: blue
+  template:
+    metadata:
+      labels:
+        app: demo-app
+        slot: blue
+    spec:
+      containers:
+      - name: demo-app
+        image: docker.io/library/demo-app:1.0
+        ports:
+        - containerPort: 8080
+---
+# GREEN deployment (new version, waiting)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app-green
+  labels:
+    app: demo-app
+    slot: green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: demo-app
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: demo-app
+        slot: green
+    spec:
+      containers:
+      - name: demo-app
+        image: docker.io/library/demo-app:2.0
+        ports:
+        - containerPort: 8080
+---
+# Service — change selector from "blue" to "green" to switch traffic
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app-svc
+spec:
+  selector:
+    app: demo-app
+    slot: blue   # <<< Change to "green" to cutover
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: ClusterIP

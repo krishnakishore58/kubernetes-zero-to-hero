@@ -1,0 +1,47 @@
+## Strategy: Recreate
+## Analogy: "Shutting down the restaurant, renovating, then reopening"
+## What happens: ALL old pods are killed first, THEN new pods are created. Brief downtime.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app-recreate
+  labels:
+    app: demo-app
+    strategy: recreate
+spec:
+  replicas: 4
+  strategy:
+    type: Recreate  # no rollingUpdate params needed
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+        version: v2
+    spec:
+      containers:
+      - name: demo-app
+        image: docker.io/library/demo-app:2.0
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app-svc
+spec:
+  selector:
+    app: demo-app
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: ClusterIP
