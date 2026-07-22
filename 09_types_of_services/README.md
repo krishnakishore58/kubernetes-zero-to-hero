@@ -36,6 +36,9 @@ kubectl run curlpod --rm -i --image=curlimages/curl:latest -- curl http://demo-a
 
 kubectl run curlpod --rm -i --image=curlimages/curl:latest -- curl http://demo-app-clusterip.default.svc.cluster.local:8080
 
+OR
+login to the pod and do the curl
+kubectl run curlpod --tty  --rm -i --image=curlimages/curl:latest -- sh
 ```
 
 ---
@@ -53,6 +56,9 @@ kubectl run curlpod --rm -i --image=curlimages/curl:latest -- curl http://demo-a
 
 ```bash
 curl http://<NodeIP>:30080
+
+If you are on minikube then create a tunnel towards NodeIP, which will give the Target domain of the tunnel to hit on the browser
+minikube service <service_name>
 ```
 
 ---
