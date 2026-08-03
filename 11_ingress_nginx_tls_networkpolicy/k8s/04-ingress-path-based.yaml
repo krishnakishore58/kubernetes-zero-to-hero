@@ -1,0 +1,32 @@
+# PATH-BASED ROUTING
+# mystore.local/apparel    → apparel-svc
+# mystore.local/jewellery  → jewellery-svc
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mystore-path-ingress
+  namespace: mystore
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - mystore.local
+    secretName: mystore-tls-secret
+  rules:
+  - host: mystore.local
+    http:
+      paths:
+      - path: /apparel
+        pathType: Prefix                  # forwards /apparel and /apparel/* as-is
+        backend:
+          service:
+            name: apparel-svc
+            port:
+              number: 80
+      - path: /jewellery
+        pathType: Prefix                  # forwards /jewellery and /jewellery/* as-is
+        backend:
+          service:
+            name: jewellery-svc
+            port:
+              number: 80

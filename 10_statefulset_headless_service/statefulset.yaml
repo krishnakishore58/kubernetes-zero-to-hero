@@ -28,14 +28,14 @@ spec:
         volumeMounts:
         - name: mongo-data
           mountPath: /data/db
-        readinessProbe:
-          exec:
-            command:
-            - mongosh
-            - "--eval"
-            - "db.adminCommand('ping')"
-          initialDelaySeconds: 10
-          periodSeconds: 5
+            #        readinessProbe:
+            #          exec:
+            #            command:
+            #            - mongosh
+            #            - "--eval"
+            #            - "db.adminCommand('ping')"
+            #          initialDelaySeconds: 10
+            #          periodSeconds: 5
   volumeClaimTemplates:       # each pod gets its OWN PVC — this is key for StatefulSet
   - metadata:
       name: mongo-data

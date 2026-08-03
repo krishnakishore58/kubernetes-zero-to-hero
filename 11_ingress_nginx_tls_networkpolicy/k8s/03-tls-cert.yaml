@@ -1,0 +1,23 @@
+# Self-signed CA issuer — no real domain or ACME needed for local demo
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+# TLS certificate covering both host-based domains + path-based domain
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mystore-tls
+  namespace: mystore
+spec:
+  secretName: mystore-tls-secret       # Ingress will reference this secret
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - mystore.local                       # path-based host
+  - apparel.mystore.local               # host-based
+  - jewellery.mystore.local             # host-based

@@ -1,0 +1,157 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# HOW NETWORKPOLICY MATCHING WORKS
+#
+# 1. podSelector      → selects WHICH pods this policy applies TO (the target)
+# 2. namespaceSelector → selects the SOURCE/DEST namespace of the traffic
+# 3. podSelector inside from/to → selects the SOURCE/DEST pod within that ns
+# 4. ports            → the port on the TARGET pod (after kube-proxy DNAT)
+#
+# AND vs OR in from[]/to[]:
+#   Same list item (no leading -) = AND  → namespace AND pod must both match
+#   Separate list items (leading -) = OR → namespace OR pod match is enough
+#
+# policyTypes: [Ingress, Egress] means:
+#   ALL ingress is denied EXCEPT what's listed below
+#   ALL egress  is denied EXCEPT what's listed below
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── APPAREL NetworkPolicy ─────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apparel-netpol
+  namespace: mystore
+spec:
+  podSelector:
+    matchLabels:
+      app: apparel                        # applies to all pods with app=apparel
+
+  policyTypes:
+  - Ingress                               # deny all inbound unless listed below
+  - Egress                                # deny all outbound unless listed below
+
+  ingress:
+  - from:
+    # AND condition: source must be in ingress-nginx namespace
+    #                AND source pod must carry the ingress-nginx label
+    # This prevents: any random pod in ingress-nginx ns from sneaking in
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+      podSelector:                        # ← no leading "-" = AND with above
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    ports:
+    - port: 8080                          # pod port (after kube-proxy translates svc:80 → pod:8080)
+
+  egress:
+  # Rule 1 — DNS: must reach kube-dns in kube-system (no "to" = any destination)
+  # kube-dns is in kube-system, not mystore, so we cannot scope by namespace here
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+
+  # Rule 2 — Restrict outbound to only jewellery pods within mystore on port 8080
+  # Remove this rule entirely if apparel should NOT talk to jewellery directly
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: mystore
+      podSelector:
+        matchLabels:
+          app: jewellery                  # AND: only jewellery pods, not everything in ns
+    ports:
+    - port: 8080                          # scope to app port only, not any port
+
+---
+# ── JEWELLERY NetworkPolicy ───────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jewellery-netpol
+  namespace: mystore
+spec:
+  podSelector:
+    matchLabels:
+      app: jewellery
+
+  policyTypes:
+  - Ingress
+  - Egress
+
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    ports:
+    - port: 8080
+
+  egress:
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: mystore
+      podSelector:
+        matchLabels:
+          app: apparel                    # AND: only apparel pods
+    ports:
+    - port: 8080
+
+---
+# ── NGINX CONTROLLER Egress NetworkPolicy ────────────────────────────────────
+# Restricts what the nginx controller itself can reach (missing in original)
+# Without this, nginx can egress to ANY pod in the cluster — too permissive
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nginx-controller-egress-netpol
+  namespace: ingress-nginx
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx   # applies to nginx controller pods only
+
+  policyTypes:
+  - Egress
+
+  egress:
+  # Rule 1 — DNS
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+
+  # Rule 2 — Only allowed to reach apparel pods in mystore on port 8080
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: mystore
+      podSelector:
+        matchLabels:
+          app: apparel
+    ports:
+    - port: 8080
+
+  # Rule 3 — Only allowed to reach jewellery pods in mystore on port 8080
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: mystore
+      podSelector:
+        matchLabels:
+          app: jewellery
+    ports:
+    - port: 8080
