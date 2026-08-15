@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+  namespace: demo-secrets
+data:
+  index.html: |
+    <html><body><h1>Demo ConfigMap page</h1>
+    <p>ENV: {{ENV}}</p></body></html>
