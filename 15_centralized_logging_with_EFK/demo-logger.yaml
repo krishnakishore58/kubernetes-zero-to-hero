@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: logger
+  namespace: efk
+  labels:
+    app: demo-logger
+spec:
+  containers:
+  - name: logger
+    image: busybox
+    command: ["/bin/sh","-c"]
+    args:
+      - while true; do echo "$(date -u) demo log from pod $(hostname) namespace efk"; sleep 3; done
