@@ -10,13 +10,30 @@ data:
       path /var/log/containers/*.log
       pos_file /var/log/fluentd-containers.log.pos
       tag kubernetes.*
-      format json
-      time_key time
       read_from_head true
+      <parse>
+        @type json
+        time_key time
+        time_format %Y-%m-%dT%H:%M:%S.%NZ
+        keep_time_key true
+      </parse>
     </source>
 
     <filter kubernetes.**>
       @type kubernetes_metadata
+    </filter>
+
+    <filter kubernetes.**>
+      @type record_transformer
+      enable_ruby true
+      <record>
+        log ${record["log"].to_s.strip}
+        kubernetes_namespace ${record.dig("kubernetes", "namespace_name").to_s}
+        kubernetes_pod ${record.dig("kubernetes", "pod_name").to_s}
+        kubernetes_container ${record.dig("kubernetes", "container_name").to_s}
+        kubernetes_host ${record.dig("kubernetes", "host").to_s}
+      </record>
+      remove_keys kubernetes,docker
     </filter>
 
     <match kubernetes.**>
@@ -24,8 +41,18 @@ data:
       host elasticsearch.efk.svc.cluster.local
       port 9200
       logstash_format true
+      logstash_prefix kubernetes-logs
       include_tag_key true
-      type_name _doc
-      index_name kubernetes-logs
       flush_interval 5s
+      reconnect_on_error true
+      reload_on_failure true
+      reload_connections false
+      <buffer>
+        @type file
+        path /var/log/fluentd-buffers/kubernetes.system.buffer
+        flush_mode interval
+        flush_interval 5s
+        retry_type exponential_backoff
+        retry_forever true
+      </buffer>
     </match>
