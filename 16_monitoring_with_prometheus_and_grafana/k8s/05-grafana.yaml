@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+data:
+  prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+        editable: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: monitoring
+data:
+  dashboard.yaml: |
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 10
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+data:
+  sample-app.json: |
+    {
+      "title": "Sample App Dashboard",
+      "uid": "sample-app",
+      "schemaVersion": 36,
+      "version": 1,
+      "refresh": "10s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Total Requests per Second",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+          "targets": [{ "expr": "rate(app_requests_total[5m])", "legendFormat": "{{method}} {{endpoint}} {{status}}", "datasource": "Prometheus" }]
+        },
+        {
+          "id": 2,
+          "title": "p95 Request Latency (seconds)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+          "targets": [{ "expr": "histogram_quantile(0.95, rate(app_request_latency_seconds_bucket[5m]))", "legendFormat": "p95 {{endpoint}}", "datasource": "Prometheus" }]
+        },
+        {
+          "id": 3,
+          "title": "Active Users",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 8, "w": 6, "h": 4 },
+          "targets": [{ "expr": "app_active_users", "legendFormat": "Active Users", "datasource": "Prometheus" }]
+        },
+        {
+          "id": 4,
+          "title": "Total Revenue ($)",
+          "type": "stat",
+          "gridPos": { "x": 6, "y": 8, "w": 6, "h": 4 },
+          "targets": [{ "expr": "app_revenue_dollars", "legendFormat": "Revenue", "datasource": "Prometheus" }]
+        },
+        {
+          "id": 5,
+          "title": "Orders by Status",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+          "targets": [{ "expr": "rate(app_orders_total[5m])", "legendFormat": "{{status}}", "datasource": "Prometheus" }]
+        },
+        {
+          "id": 6,
+          "title": "Error Rate (5xx)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+          "targets": [{ "expr": "rate(app_requests_total{status=\"500\"}[5m])", "legendFormat": "Error Rate", "datasource": "Prometheus" }]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "admin123"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards/sample-app.json
+              subPath: sample-app.json
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  selector:
+    app: grafana
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30030
