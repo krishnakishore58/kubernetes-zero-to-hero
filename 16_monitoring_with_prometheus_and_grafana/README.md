@@ -14,15 +14,6 @@
 │   ├── 03-alertmanager.yaml # Alertmanager + Slack config
 │   ├── 04-node-exporter.yaml
 │   └── 05-grafana.yaml      # Grafana + dashboards
-├── prometheus/
-│   ├── prometheus.yaml      # standalone reference config
-│   └── alert-rules.yaml
-├── alertmanager/
-│   └── alertmanager.yaml    # standalone reference config
-└── grafana/
-    └── provisioning/
-        ├── datasources/
-        └── dashboards/
 ```
 
 ## Prerequisites
