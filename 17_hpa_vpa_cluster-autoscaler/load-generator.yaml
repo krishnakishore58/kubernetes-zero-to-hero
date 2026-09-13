@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: load-generator
+  namespace: autoscale-demo
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: load
+        image: curlimages/curl:latest
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh","-c"]
+        args:
+          - |
+            TARGET="http://demo-app.autoscale-demo.svc.cluster.local:8080/"
+            for round in 1 2 3 4 5; do
+              seq 1 200 | xargs -P 50 -n 1 -I{} curl -sS --max-time 10 "${TARGET}?size_kb=200&cpu_work=100000" >/dev/null &
+              sleep 3
+              wait
+              sleep 1
+            done
+            echo "done"

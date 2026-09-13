@@ -1,0 +1,24 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: demo-app-vpa
+  namespace: autoscale-demo
+spec:
+  targetRef:
+    apiVersion: "apps/v1"
+    kind:       "Deployment"
+    name:       "demo-app"
+  updatePolicy:
+    # keep Off to collect safe recommendations initially
+    #updateMode: "Off"
+    updateMode: "Recreate"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "*"
+      # only control memory; leave CPU to HPA
+      controlledResources: ["memory"]
+      # align minAllowed with the Deployment request to avoid ping-pong
+      minAllowed:
+        memory: "32Mi"
+      maxAllowed:
+        memory: "1Gi"
